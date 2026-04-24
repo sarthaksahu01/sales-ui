@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Field Sales Order Portal</title>
+    <style>
+      :root {
+        --primary: #25d366;
+        --bg: #f4f7f6;
+        --text: #333;
+      }
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        background-color: var(--bg);
+        color: var(--text);
+        padding: 20px;
+        margin: 0;
+      }
+      .container {
+        max-width: 600px;
+        margin: 0 auto;
+        background: white;
+        padding: 25px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        margin-top: 0;
+        color: #111;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 600;
+        font-size: 14px;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        box-sizing: border-box;
+        font-size: 16px;
+      }
+      .location-wrapper {
+        display: flex;
+        gap: 10px;
+      }
+      .btn {
+        background-color: #007bff;
+        color: white;
+        border: none;
+        padding: 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: bold;
+        width: 100%;
+        transition: 0.2s;
+      }
+      .btn:hover {
+        opacity: 0.9;
+      }
+      .btn-wa {
+        background-color: var(--primary);
+        margin-top: 20px;
+      }
+      .btn-location {
+        width: auto;
+        white-space: nowrap;
+        background-color: #6c757d;
+      }
+
+      /* Order Section Styles */
+      .order-section {
+        border: 2px dashed #ddd;
+        padding: 15px;
+        border-radius: 8px;
+        margin-top: 20px;
+        background: #fafafa;
+      }
+      .product-grid {
+        display: grid;
+        grid-template-columns: 2fr 1fr 1fr;
+        gap: 10px;
+        margin-bottom: 10px;
+      }
+      .price-display {
+        font-weight: bold;
+        font-size: 18px;
+        color: #d9534f;
+        margin-bottom: 10px;
+        text-align: right;
+      }
+
+      #order-list {
+        margin-top: 15px;
+        padding: 0;
+        list-style: none;
+      }
+      .order-item {
+        display: flex;
+        justify-content: space-between;
+        background: #fff;
+        padding: 10px;
+        border: 1px solid #eee;
+        margin-bottom: 5px;
+        border-radius: 4px;
+      }
+      .remove-btn {
+        color: red;
+        cursor: pointer;
+        font-weight: bold;
+        margin-left: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>📝 New Customer Order</h2>
+
+      <div class="form-group">
+        <label for="customerName">Customer Name *</label>
+        <input
+          type="text"
+          id="customerName"
+          required
+          placeholder="e.g. John Doe"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="shopName">Shop Name *</label>
+        <input
+          type="text"
+          id="shopName"
+          required
+          placeholder="e.g. Doe Retailers"
+        />
+      </div>
+
+      <div class="form-group">
+        <label for="phone">Customer Phone Number *</label>
+        <input type="tel" id="phone" required placeholder="e.g. 9876543210" />
+      </div>
+
+      <div class="form-group">
+        <label for="location">Shop Location *</label>
+        <div class="location-wrapper">
+          <input
+            type="text"
+            id="location"
+            required
+            placeholder="Address or GPS Coordinates"
+          />
+          <button
+            class="btn btn-location"
+            type="button"
+            onclick="getLocation()"
+          >
+            📍 Get GPS
+          </button>
+        </div>
+      </div>
+
+      <div class="order-section">
+        <h3>🛒 Add Products</h3>
+        <div class="form-group">
+          <label for="productSearch">Search Product</label>
+          <input
+            type="text"
+            id="productSearch"
+            list="productList"
+            placeholder="Type to search..."
+            onchange="updatePrice()"
+          />
+          <datalist id="productList"> </datalist>
+        </div>
+
+        <div class="product-grid">
+          <div>
+            <label for="packetSize">Unit Size</label>
+            <select id="packetSize" onchange="updatePrice()">
+              <option value="Piece">Piece</option>
+              <option value="Packet">Packet</option>
+              <option value="Box">Box</option>
+            </select>
+          </div>
+          <div>
+            <label for="qty">Quantity</label>
+            <input
+              type="number"
+              id="qty"
+              min="1"
+              value="1"
+              oninput="updatePrice()"
+            />
+          </div>
+          <div>
+            <label>Total Price</label>
+            <div class="price-display" id="calculatedPrice">₹0.00</div>
+          </div>
+        </div>
+
+        <button class="btn" type="button" onclick="addToOrder()">
+          + Add to Order
+        </button>
+
+        <ul id="order-list"></ul>
+      </div>
+
+      <button class="btn btn-wa" onclick="sendOrderViaWhatsApp()">
+        📲 Send Order via WhatsApp
+      </button>
+    </div>
+
+    <script>
+      // --- 1. LIVE DATABASE ---
+      let liveDatabase = {};
+      let currentOrder = [];
+
+      // 🔴 PASTE YOUR NEW WEB APP URL BELOW:
+      const API_URL =
+        "https://script.google.com/macros/s/AKfycbyZfa1TOXvPiUdvBOh968OHpsmkXffYDCVLuYlxO45GO3aTtNt3pvpopVJxnjTlgsFI/exec";
+
+      // 🔴 PASTE YOUR WHATSAPP NUMBER BELOW:
+      const targetWhatsAppNumber = "919369210176";
+
+      // --- 2. INITIALIZATION (Fetch data from Google Sheets) ---
+      window.onload = async function () {
+        const dataList = document.getElementById("productList");
+        const searchInput = document.getElementById("productSearch");
+
+        // Show loading state
+        searchInput.placeholder = "Loading products from database...";
+
+        try {
+          const response = await fetch(API_URL);
+          liveDatabase = await response.json();
+
+          // Populate the dropdown
+          for (const item in liveDatabase) {
+            let option = document.createElement("option");
+            option.value = item;
+            dataList.appendChild(option);
+          }
+          searchInput.placeholder = "Type to search..."; // Reset placeholder
+        } catch (error) {
+          console.error("Fetch error:", error);
+          alert(
+            "Error loading inventory. Please check the Web App permissions or your internet connection."
+          );
+          searchInput.placeholder = "Error loading database";
+        }
+      };
+
+      // --- 3. DYNAMIC PRICING LOGIC ---
+      function updatePrice() {
+        const product = document.getElementById("productSearch").value;
+        const size = document.getElementById("packetSize").value;
+        const qty = document.getElementById("qty").value;
+        const priceDisplay = document.getElementById("calculatedPrice");
+
+        if (liveDatabase[product]) {
+          const unitPrice = liveDatabase[product].prices[size];
+
+          if (!unitPrice || unitPrice === 0) {
+            priceDisplay.innerText = "N/A (Not sold in this size)";
+            return 0;
+          }
+
+          const finalPrice = unitPrice * qty;
+          priceDisplay.innerText = `₹${finalPrice.toFixed(2)}`;
+          return finalPrice;
+        } else {
+          priceDisplay.innerText = "₹0.00";
+          return 0;
+        }
+      }
+
+      // --- 4. ORDER MANAGEMENT ---
+      function addToOrder() {
+        const product = document.getElementById("productSearch").value;
+        const size = document.getElementById("packetSize").value;
+        const qty = document.getElementById("qty").value;
+        const price = updatePrice();
+
+        if (!product || !liveDatabase[product]) {
+          alert("Please select a valid product from the list.");
+          return;
+        }
+        if (price === 0) {
+          alert(
+            `This product is not available as a ${size}. Please select a different unit size.`
+          );
+          return;
+        }
+
+        currentOrder.push({ product, size, qty, price });
+        renderOrderList();
+
+        // Reset inputs
+        document.getElementById("productSearch").value = "";
+        document.getElementById("qty").value = 1;
+        updatePrice();
+      }
+
+      function renderOrderList() {
+        const list = document.getElementById("order-list");
+        list.innerHTML = "";
+        currentOrder.forEach((item, index) => {
+          const li = document.createElement("li");
+          li.className = "order-item";
+          li.innerHTML = `
+                <span><b>${item.product}</b> (${item.qty} x ${item.size})</span>
+                <span>₹${item.price.toFixed(
+                  2
+                )} <span class="remove-btn" onclick="removeItem(${index})">✖</span></span>
+            `;
+          list.appendChild(li);
+        });
+      }
+
+      function removeItem(index) {
+        currentOrder.splice(index, 1);
+        renderOrderList();
+      }
+
+      // --- 5. GEOLOCATION API ---
+      function getLocation() {
+        const locInput = document.getElementById("location");
+        locInput.value = "Fetching GPS...";
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              locInput.value = `${position.coords.latitude}, ${position.coords.longitude}`;
+            },
+            (error) => {
+              alert("Location access denied or unavailable.");
+              locInput.value = "";
+            }
+          );
+        } else {
+          alert("Geolocation is not supported by this browser.");
+        }
+      }
+
+      // --- 6. WHATSAPP TRANSMISSION ---
+      function sendOrderViaWhatsApp() {
+        const name = document.getElementById("customerName").value;
+        const shop = document.getElementById("shopName").value;
+        const phone = document.getElementById("phone").value;
+        const loc = document.getElementById("location").value;
+
+        if (!name || !shop || !phone || !loc) {
+          alert("Please fill in all mandatory customer details.");
+          return;
+        }
+        if (currentOrder.length === 0) {
+          alert("Please add at least one item to the order.");
+          return;
+        }
+
+        let message = `*📦 NEW ORDER*\n\n`;
+        message += `*👤 Customer:* ${name}\n`;
+        message += `*🏪 Shop:* ${shop}\n`;
+        message += `*📞 Phone:* ${phone}\n`;
+        message += `*📍 Location:* ${loc}\n\n`;
+        message += `*🛒 ITEMS:*\n`;
+
+        let grandTotal = 0;
+        currentOrder.forEach((item, i) => {
+          message += `${i + 1}. ${item.product} - ${item.qty} ${
+            item.size
+          }(s) - ₹${item.price}\n`;
+          grandTotal += item.price;
+        });
+
+        message += `\n*🧾 GRAND TOTAL: ₹${grandTotal.toFixed(2)}*`;
+
+        const encodedMessage = encodeURIComponent(message);
+        const waUrl = `https://wa.me/${targetWhatsAppNumber}?text=${encodedMessage}`;
+
+        window.open(waUrl, "_blank");
+      }
+    </script>
+  </body>
+</html>
